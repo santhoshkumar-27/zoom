@@ -1,0 +1,269 @@
+<!-- new layout redesign for both share screen and video screen -->
+<nb-card class="m-0 h-100 w-100 border-0">
+    <nb-card-body class="p-0 overflow-hidden">
+        <div id="wc-content">
+            <div id="wc-container">
+                <!-- during screen sharing need to added this class in this div [video-share-standard] -->
+                <div class="video-share-layout" [style.height.px]="containerHeight"
+                    [ngClass]="{'video-share-standard': isScreenSomeOneSharing}">
+                    <div class="video-layout-container">
+                        <div class="screen-share-layout overflow-hidden"
+                            [style.height.px]="isScreenSomeOneSharing ? screenShareSize.containerSize.height : defaultScreenShareContainer">
+                            <ng-container *ngTemplateOutlet="screenShareLayout"></ng-container>
+                        </div>
+                        <div class="participants-share-layout">
+                            <ng-container *ngTemplateOutlet="videoShareLayout"></ng-container>
+                        </div>
+                    </div>
+                </div>
+                <!-- footer content -->
+                <footer role="presentation" id="wc-footer" class="footer" [style.height.px]="footerHeight"
+                    [ngStyle]="{'transform': 'translateY(' + footerTranslateHeight + 'px)'}">
+                    <app-footer
+                        [mobileAndTablet]="mobileAndTablet" [screenShareShow]="screenShare.show"
+                        [renderSelfInVideoEl]="renderSelfInVideoEl" [isInVBMode]="isInVBMode"
+                        [captionEnabled]="captionEnabled" [meetingID]="meetingID"
+                        (clickEmitter)="handleButtonClickActions($event)"></app-footer>
+                </footer>
+                <!-- loading and error screen -->
+                <ng-container *ngIf="loadingScreen.show">
+                    <div
+                        class="loadErrorScreen rounded-0 position-absolute top-50 start-50 translate-middle w-100 h-100 d-flex justify-content-center align-items-center nb-card">
+                        <ng-container *ngTemplateOutlet="loadingErrorScreen"></ng-container>
+                    </div>
+                </ng-container>
+
+                <!-- self screen share content project -->
+                <div [ngClass]="{'d-none': !screenShare.show, 'd-block': screenShare.show}">
+                    <ng-container *ngTemplateOutlet="selfScreenShareLayout"></ng-container>
+                </div>
+                <!-- version container -->
+                <div class="version-show-container">
+                    <span>
+                        v - {{version}}
+                    </span>
+                </div>
+            </div>
+            <!-- captions is stepped -->
+            <ng-container *ngIf="captionEnabled">
+                <ng-container *ngTemplateOutlet="closedCaptionsTemplate"></ng-container>
+            </ng-container>
+        </div>
+    </nb-card-body>
+</nb-card>
+<!-- loading and error screen -->
+<ng-template #loadingErrorScreen>
+    <div class="h-100 w-100 d-flex justify-content-center flex-column align-items-center">
+        <ng-container [ngSwitch]="loadingScreen.state">
+            <!-- Joining -->
+            <ng-container *ngSwitchCase="1">
+                <p class="fs-3 fw-bold">
+                    {{loadingScreen.message}}... </p>
+                <img class="loading-img" src="assets/png/zoom_loader.png" alt="loading...">
+            </ng-container>
+            <!-- Leave -->
+            <ng-container *ngSwitchCase="2">
+                <p class="fs-3 fw-bold">
+                    {{loadingScreen.message}}... </p>
+                <img class="loading-img" src="assets/png/zoom_loader.png" alt="loading...">
+            </ng-container>
+            <!-- Error -->
+            <ng-container *ngSwitchCase="3">
+                <p class="fs-3 fw-bold text-danger">{{loadingScreen.message}}</p>
+                <button type="button" nbButton status="danger" (click)="cancel()">Go Back</button>
+            </ng-container>
+        </ng-container>
+    </div>
+</ng-template>
+<!-- screen share layout -->
+<ng-template #screenShareLayout>
+    <div class="sharing-layout d-block overflow-hidden">
+        <div class="d-block">
+            <div class="share-container">
+                <div class="share-container__indicator">
+                    <div class="react-draggable react-draggable-dragged"
+                        style="touch-action: none; transform: translate(0px, 0px);">
+                        <div class="share-sharing-indicator" role="presentation">
+                            <div class="share-sharing-indicator__tip" tabindex="0">
+                                You are viewing&nbsp;<span>{{screenShareData.name}}</span>'s screen
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="share-container__viewport" role="presentation" tabindex="-1"
+                    [style.width.px]="screenShareSize.canvasSize.width"
+                    [style.height.px]="screenShareSize.canvasSize.height"
+                    [style.marginTop.px]="screenShareSize.canvasSize.marginTop">
+                    <canvas class="share-container__canvas" #screenShareContentRender width="1920"
+                        height="1080"></canvas>
+                    <div class="share-container__canvas-outline"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</ng-template>
+<!-- video recieve layout -->
+<ng-template #videoShareLayout>
+    <div role="presentation" class="main-layout" style="display: block;">
+        <canvas #particpantsVideoCanvas [style.width.px]="currentVideoCanvasSize.width"
+            [style.height.px]="currentVideoCanvasSize.height" class="participants-video">
+        </canvas>
+        <video #videoElementRef [style.width.px]="selfVideoElementSize.width"
+            [style.height.px]="selfVideoElementSize.height" [style.left.px]="selfVideoElementSize.x"
+            [style.bottom.px]="selfVideoElementSize.y" [ngClass]="{'d-none': selfVideoElementSize.hide}"
+            class="self-video-ele"></video>
+        <div class="visible">
+            <ng-container *ngIf="multipleUserInMeeting">
+                <ng-container *ngTemplateOutlet="speakerBarInfoTemplate"></ng-container>
+            </ng-container>
+            <ng-container *ngIf="!isScreenSomeOneSharing">
+                <ng-container *ngTemplateOutlet="userSpeakerInfoTemplate"></ng-container>
+            </ng-container>
+        </div>
+    </div>
+</ng-template>
+<!-- userSpeakerInfo layout -->
+<ng-template #userSpeakerInfoTemplate>
+    <div [style.width.px]="currentSpeakerSize.containerSize.width"
+        [style.height.px]="currentSpeakerSize.containerSize.height">
+        <div class="speaker-active-container__wrap position-relative overflow-hidden">
+            <div class="speaker-active-container__video-frame"
+                [style.width.px]="mobileAndTablet ? currentSpeakerSize.containerSize.width : currentSpeakerSize.viewSize.width"
+                [style.height.px]="mobileAndTablet ? currentSpeakerSize.containerSize.height : currentSpeakerSize.viewSize.height"
+                [style.left.px]="mobileAndTablet ? 0 : currentSpeakerSize.viewSize.x"
+                [style.bottom.px]="mobileAndTablet ? 0 :currentSpeakerSize.viewSize.y">
+                <div class="video-avatar__avatar" [ngClass]="{'video-off': currentActiveSpeakerResponse.videoOff}">
+                    <div class="video-avatar__avatar-title">
+                        <div class="video-avatar__avatar-name speaker-fs">
+                            {{currentParticipantsName.speaker}}
+                        </div>
+                    </div>
+                    <div class="video-avatar__avatar-footer" [style.bottom.px]="speakerBottomPosition">
+                        <span role="none">{{currentParticipantsName.speaker}}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</ng-template>
+<!-- speaker bar position -->
+<ng-template #speakerBarInfoTemplate>
+    <div class="speaker-bar-container__horizontal-view-wrap" [style.width.px]="videoCanvasSize.withScreenShare.width"
+        [style.height.px]="videoCanvasSize.withScreenShare.height">
+        <ng-container *ngIf="mobileAndTablet">
+            <ng-container *ngTemplateOutlet="speakerBarIndividualTemplateForMobile"></ng-container>
+        </ng-container>
+        <ng-container *ngIf="!mobileAndTablet">
+            <ng-container *ngTemplateOutlet="speakerBarIndividualTemplateForWeb"></ng-container>
+        </ng-container>
+        <ng-container *ngIf="showNavigationButtons">
+            <!-- previous button -->
+            <button type="button" class="speaker-bar-container__switch-button" [ngClass]="{'d-none': currentPage == 1}"
+                (click)="previousUsersToView()" [style.bottom.px]="this.mobileAndTablet ? 40 : 6"
+                [style.left.px]="currentButtonPosition.previousButton.x">
+                <nb-icon icon="arrow-ios-back-outline" class="switch-button-fs"></nb-icon>
+            </button>
+            <!-- next button -->
+            <button type="button" class="speaker-bar-container__switch-button"
+                [ngClass]="{'d-none': currentPage == totalPage}" (click)="nextUsersToView()"
+                [style.bottom.px]="this.mobileAndTablet ? 40 : 6" [style.left.px]="currentButtonPosition.nextButton.x">
+                <nb-icon icon="arrow-ios-forward-outline" class="switch-button-fs"></nb-icon>
+            </button>
+        </ng-container>
+    </div>
+</ng-template>
+<!-- self screen share layout -->
+<ng-template #selfScreenShareLayout>
+    <div class="sharer-controlbar-container">
+        <div class="sharer-controlbar-container__overlay">
+            <div class="sharer-controlbar-container__main-area" tabindex="-1" role="dialog" aria-modal="true">
+                <div class="sharer-controlbar-container__main-content"
+                    [ngStyle]="{'transform': 'translate(' + screenShare.x + 'px, ' + screenShare.y + 'px)'}">
+                    <div class="sharer-controlbar-container__caption" tabindex="0" aria-labelledby="sharingText">
+                        <div class="sharer-controlbar-container__button ax-outline-blue">
+                            <span id="sharingText" class="sharer-controlbar-container__text">You're screen
+                                sharing</span>
+                        </div>
+                        <div class="sharer-preview-container">
+                            <div class="sharer-preview-container__wrapper"
+                                [ngClass]="{'d-none': !screenShare.expanded}">
+                                <span role="img" aria-label="Preview" tabindex="0"
+                                    class="sharer-client-sharing-canvas-container">
+                                    <canvas class="sharer-client-sharing-canvas-container__source-canvas"
+                                        [ngClass]="{'d-none': renderScreenShareSelfVedioEl, 'd-block': !renderScreenShareSelfVedioEl}"
+                                        #shareScreenSelfCanvasElement></canvas>
+                                    <video class="sharer-client-sharing-canvas-container__source-canvas"
+                                        [ngClass]="{'d-block': renderScreenShareSelfVedioEl, 'd-none': !renderScreenShareSelfVedioEl}"
+                                        #shareScreenSelfVideoElement></video>
+                                </span>
+                            </div>
+                            <button aria-label="screen share preview" (click)="expandOrClose()"
+                                class="share-preview-toggle" aria-expanded="true">
+                                <ng-container *ngIf="screenShare.expanded">
+                                    <nb-icon icon="arrow-ios-upward-outline"></nb-icon>
+                                </ng-container>
+                                <ng-container *ngIf="!screenShare.expanded">
+                                    <nb-icon icon="arrow-ios-downward-outline"></nb-icon>
+                                </ng-container>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</ng-template>
+
+<!-- top individual segment of small box -->
+<ng-template #speakerBarIndividualTemplateForMobile>
+    <div class="speaker-bar-container__video-frame" [style.width.px]="topBoxContainer.width"
+        [style.height.px]="topBoxContainer.height" [style.left.px]="topBoxContainer.x"
+        [ngClass]="{'d-none': topBoxContainer.hide}">
+        <div class="video-avatar__avatar" [ngClass]="{'video-off': topBoxContainer.videoOff}">
+            <div class="video-avatar__avatar-title">
+                <div class="video-avatar__avatar-name top-user-speaker-info-name">
+                    {{currentParticipantsName.top}}
+                </div>
+            </div>
+            <div class="video-avatar__avatar-footer" style="bottom: 0px;">
+                <span role="none">{{currentParticipantsName.top}}</span>
+            </div>
+        </div>
+    </div>
+</ng-template>
+<ng-template #speakerBarIndividualTemplateForWeb>
+    <ng-container *ngFor="let userState of forWebUserLocalState; trackBy: userByUserId">
+        <div class="speaker-bar-container__video-frame" [style.width.px]="userState.layout.width"
+            [style.height.px]="userState.layout.height" [style.left.px]="userState.layout.x">
+            <div class="video-avatar__avatar" [ngClass]="{'video-off': !userState.video}">
+                <div class="video-avatar__avatar-title">
+                    <div class="video-avatar__avatar-name top-user-speaker-info-name">
+                        {{userState.displayName}}
+                    </div>
+                </div>
+                <div class="video-avatar__avatar-footer" style="bottom: 0px;">
+                    <span role="none">{{userState.displayName}}</span>
+                </div>
+            </div>
+        </div>
+    </ng-container>
+</ng-template>
+
+
+<ng-template #closedCaptionsTemplate>
+    <ng-container *ngIf="closedCaptions$ | async as CloseCaption">
+        <div class="live-transcription-subtitle__box ax-outline-blue" tabindex="0"
+            [style.bottom.px]="footerHeight + 20">
+            <div id="live-transcription-subtitle">
+
+                <div class="live-transcription-subtitle__initial">
+                    <span>
+                        {{CloseCaption.displayName | slice:0:1 }}
+                    </span>
+                </div>
+                <span dir="auto" style="background: none; border: medium; resize: none;"
+                    class="live-transcription-subtitle__item">{{CloseCaption.text }}</span>
+            </div>
+        </div>
+    </ng-container>
+</ng-template>
